@@ -1,0 +1,1 @@
+export { IntensitySegments } from './intensitySegment';

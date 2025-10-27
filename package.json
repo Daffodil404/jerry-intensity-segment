@@ -1,0 +1,30 @@
+{
+  "name": "intensity-segments",
+  "version": "1.0.0",
+  "description": "A TypeScript implementation for managing intensity values across time intervals",
+  "main": "package/index.ts",
+  "scripts": {
+    "test": "mocha --require ts-node/register test/**/*.ts",
+    "test:watch": "mocha --require ts-node/register --watch --watch-files test/**/*.ts,package/**/*.ts test/**/*.ts",
+    "build": "tsc",
+    "dev": "ts-node package/intensitySegment.ts"
+  },
+  "keywords": [
+    "intensity",
+    "segments",
+    "intervals",
+    "timeline",
+    "typescript"
+  ],
+  "author": "Yanyu Wu",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/chai": "^4.3.11",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.10.6",
+    "chai": "^4.3.10",
+    "mocha": "^10.2.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
