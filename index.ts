@@ -2,8 +2,35 @@ class IntensitySegments {
     private segmentMap: Map<number, number> = new Map();
     private sortedKeys: number[] = [];
 
+    /**
+     * Check the input is valid
+     * @param from - The start point of the interval
+     * @param to - The end point of the interval
+     * @param amount - The amount of the interval
+     * @throws {Error} - If the input is invalid
+     */
+    private check(from: number, to: number, amount: number) {
+        // check the input type
+        if (typeof from !== 'number' || typeof to !== 'number' || typeof amount !== 'number') {
+            throw new Error('Invalid input type');
+        }
 
+        // check the input range
+        if (from > to) {
+            throw new Error('Invalid input range');
+        }
 
+        // check the amount is not infinity
+        if (amount === Infinity || amount === -Infinity) {
+            throw new Error('Invalid input amount');
+        }
+
+    }
+
+    /**
+     * Insert a new key into the sorted keys
+     * @param key - The key to insert
+     */
     private insertNewKeyIntoSorted(key: number) {
         let left = 0;
         let right = this.sortedKeys.length - 1;
@@ -19,11 +46,16 @@ class IntensitySegments {
         this.sortedKeys.splice(left, 0, key);
     }
 
+    /**
+     * 
+     * @param key - The key to find the closest left point
+     * @returns 
+     */
     private findClosestLeftPoint(key: number): number | undefined {
         let left = 0;
         let right = this.sortedKeys.length - 1;
         let result = -1;
-        
+
         while (left <= right) {
             const mid = Math.floor((left + right) / 2);
             if (this.sortedKeys[mid] < key) {  // 严格小于
@@ -33,19 +65,35 @@ class IntensitySegments {
                 right = mid - 1;
             }
         }
-        
+
         return result >= 0 ? this.sortedKeys[result] : undefined;
     }
 
-    add(from: number, to: number, amount: number) {
-        this.set(from, to, amount);
+    /**
+     * Set the absolute value for the interval.
+     * @param from - The start point of the interval
+     * @param to - The end point of the interval
+     * @param amount - The amount of the interval
+     * @throws {Error} - If the input is invalid
+     */
+    set(from: number, to: number, amount: number) {
+        this.segmentMap.set(from, amount);
+        // loop through the sorted keys and set the amount for the interval
+        this.sortedKeys.forEach((key) => {
+            if (key >= from && key < to) {
+                this.segmentMap.set(key, amount);
+            }
+        });
     }
 
 
-
-    // I am not sure how this works, the usage didn't given in the demo.
-    // I implement it in my own way.
-    set(from: number, to: number, amount: number) {
+    /**
+     * 
+     * @param from - The start point of the interval
+     * @param to - The end point of the interval
+     * @param amount - The amount of the interval
+     */
+    add(from: number, to: number, amount: number) {
         // set start point
         if (this.segmentMap.has(from)) {
             this.segmentMap.set(from, (this.segmentMap.get(from) || 0) + amount);
@@ -75,8 +123,12 @@ class IntensitySegments {
     }
 
 
+    /**
+     * Convert the intensity segments to a string
+     * @returns The string representation of the intensity segments
+     */
     toString() {
-        const res: [number, number][] = this.sortedKeys.map(key => 
+        const res: [number, number][] = this.sortedKeys.map(key =>
             [key, this.segmentMap.get(key)!]
         );
         console.log(res);
