@@ -1,6 +1,5 @@
 import {
     validateInput,
-    insertIntoSorted,
     findClosestLeftPoint,
     mapToSortedArray
 } from './utils';
@@ -8,6 +7,26 @@ import {
 class IntensitySegments {
     private segmentMap: Map<number, number> = new Map();
     private sortedKeys: number[] = [];
+    private needsRebuild: boolean = false;  // 标记是否需要重建 sortedKeys
+
+    /**
+     * 标记需要重建 sortedKeys
+     */
+    private markDirty(): void {
+        this.needsRebuild = true;
+    }
+
+    /**
+     * 如果需要，重建 sortedKeys 数组
+     * 避免多次 splice，改为一次性排序
+     */
+    private rebuildIfNeeded(): void {
+        if (this.needsRebuild) {
+            // 从 Map 的所有键重建有序数组 - O(n log n)
+            this.sortedKeys = Array.from(this.segmentMap.keys()).sort((a, b) => a - b);
+            this.needsRebuild = false;
+        }
+    }
 
     /**
      * Set the absolute value for the interval.
@@ -19,16 +38,22 @@ class IntensitySegments {
     set(from: number, to: number, amount: number): void {
         validateInput(from, to, amount);
 
-        // Add from point if not exists
+        // 直接添加到 Map，标记需要重建，不使用 splice
         if (!this.segmentMap.has(from)) {
-            insertIntoSorted(this.sortedKeys, from);
+            this.segmentMap.set(from, 0);  // 先设置占位值
+            this.markDirty();
         }
-        this.segmentMap.set(from, amount);
-
-        // Add to point if not exists
+        
         if (!this.segmentMap.has(to)) {
-            insertIntoSorted(this.sortedKeys, to);
+            this.segmentMap.set(to, 0);  // 先设置占位值
+            this.markDirty();
         }
+
+        // 重建 sortedKeys（如果有新键加入）
+        this.rebuildIfNeeded();
+
+        // 现在可以使用已排序的 sortedKeys
+        this.segmentMap.set(from, amount);
 
         // Update all existing points in the interval
         this.sortedKeys.forEach((key) => {
@@ -63,8 +88,11 @@ class IntensitySegments {
         if (this.segmentMap.has(from)) {
             this.segmentMap.set(from, (this.segmentMap.get(from) || 0) + amount);
         } else {
-            // Insert new point and inherit intensity from left
-            insertIntoSorted(this.sortedKeys, from);
+            // 直接添加到 Map，标记需要重建，不使用 splice
+            this.segmentMap.set(from, 0);  // 先设置占位值
+            this.markDirty();
+            this.rebuildIfNeeded();  // 立即重建以便后续操作
+
             const closestLeftPoint = findClosestLeftPoint(this.sortedKeys, from);
 
             if (closestLeftPoint !== undefined) {
@@ -77,14 +105,17 @@ class IntensitySegments {
 
     private handleAddEndPoint(to: number, amount: number): void {
         if (!this.segmentMap.has(to)) {
-            insertIntoSorted(this.sortedKeys, to);
+            // 直接添加到 Map，标记需要重建，不使用 splice
+            this.segmentMap.set(to, 0);  // 先设置占位值
+            this.markDirty();
+            this.rebuildIfNeeded();  // 立即重建以便后续操作
+
             // Find the intensity BEFORE adding this range
             // The closest left point already has the new intensity added
             // So we need to subtract the amount to get the original intensity
             const closestLeftPoint = findClosestLeftPoint(this.sortedKeys, to);
             if (closestLeftPoint !== undefined) {
                 const currentIntensity = this.segmentMap.get(closestLeftPoint) || 0;
-                // The 'to' point marks the END of this range, so subtract the amount
                 this.segmentMap.set(to, currentIntensity - amount);
             } else {
                 this.segmentMap.set(to, 0);

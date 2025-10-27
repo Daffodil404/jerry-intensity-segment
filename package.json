@@ -2,11 +2,16 @@
   "name": "intensity-segments",
   "version": "1.0.0",
   "description": "A TypeScript implementation for managing intensity values across time intervals",
-  "main": "package/index.ts",
+  "main": "dist/package/index.js",
+  "types": "dist/package/index.d.ts",
   "scripts": {
     "test": "mocha --require ts-node/register test/**/*.ts",
     "test:watch": "mocha --require ts-node/register --watch --watch-files test/**/*.ts,package/**/*.ts test/**/*.ts",
     "build": "tsc",
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean",
+    "start": "node dist/demo/example.js",
+    "demo": "ts-node demo/example.ts",
     "dev": "ts-node package/intensitySegment.ts"
   },
   "keywords": [
