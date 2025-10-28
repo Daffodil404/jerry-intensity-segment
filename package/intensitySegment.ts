@@ -1,31 +1,33 @@
 import {
     validateInput,
-    findClosestLeftPoint,
-    mapToSortedArray
+    findInsertPosition,
+    trimZeroSegments
 } from './utils';
 
 class IntensitySegments {
     private segmentMap: Map<number, number> = new Map();
     private sortedKeys: number[] = [];
-    private needsRebuild: boolean = false;  // 标记是否需要重建 sortedKeys
 
     /**
-     * 标记需要重建 sortedKeys
+     * Ensures a boundary point exists in the data structure
+     * If the point doesn't exist, inserts it and inherits intensity from the nearest left point
+     * @param point - The boundary point to insert
      */
-    private markDirty(): void {
-        this.needsRebuild = true;
-    }
-
-    /**
-     * 如果需要，重建 sortedKeys 数组
-     * 避免多次 splice，改为一次性排序
-     */
-    private rebuildIfNeeded(): void {
-        if (this.needsRebuild) {
-            // 从 Map 的所有键重建有序数组 - O(n log n)
-            this.sortedKeys = Array.from(this.segmentMap.keys()).sort((a, b) => a - b);
-            this.needsRebuild = false;
+    private insertPoint(point: number): void {
+        if (this.segmentMap.has(point)) {
+            return; 
         }
+
+        const index = findInsertPosition(this.sortedKeys, point);
+        
+        // Inherit intensity from the left (default to 0 if no left point exists)
+        const inheritedValue = index > 0 
+            ? this.segmentMap.get(this.sortedKeys[index - 1])! 
+            : 0;
+        
+        this.sortedKeys.splice(index, 0, point);
+        
+        this.segmentMap.set(point, inheritedValue);
     }
 
     /**
@@ -38,90 +40,27 @@ class IntensitySegments {
     set(from: number, to: number, amount: number): void {
         validateInput(from, to, amount);
 
-        // 直接添加到 Map，标记需要重建，不使用 splice
-        if (!this.segmentMap.has(from)) {
-            this.segmentMap.set(from, 0);  // 先设置占位值
-            this.markDirty();
-        }
-        
-        if (!this.segmentMap.has(to)) {
-            this.segmentMap.set(to, 0);  // 先设置占位值
-            this.markDirty();
-        }
+        this.insertPoint(from);
+        this.insertPoint(to);
 
-        // 重建 sortedKeys（如果有新键加入）
-        this.rebuildIfNeeded();
+        const startIndex = findInsertPosition(this.sortedKeys, from);
+        const endIndex = findInsertPosition(this.sortedKeys, to);
 
-        // 现在可以使用已排序的 sortedKeys
-        this.segmentMap.set(from, amount);
-
-        // Update all existing points in the interval
-        this.sortedKeys.forEach((key) => {
-            if (key > from && key < to) {
-                this.segmentMap.set(key, amount);
-            }
+        // Set all points within the interval to the specified intensity
+        this.sortedKeys.slice(startIndex, endIndex).forEach(point => {
+            this.segmentMap.set(point, amount);
         });
 
-        // Set the 'to' point to restore the intensity from before this range
-        const closestLeftBeforeTo = findClosestLeftPoint(this.sortedKeys, to);
-        if (closestLeftBeforeTo !== undefined && closestLeftBeforeTo < from) {
-            // If the closest left point is before 'from', use its intensity
-            this.segmentMap.set(to, this.segmentMap.get(closestLeftBeforeTo) || 0);
-        } else {
-            // Otherwise, the range extends beyond any previous data
-            this.segmentMap.set(to, 0);
-        }
+        // Restore the 'to' point's intensity to the value before the range
+        // Since insertPoint(to) inherited from the left,
+        // but if the left point is within [from, to), it's already been set to amount
+        // We need to find the intensity before 'from'
+        const valueBeforeRange = startIndex > 0 
+            ? this.segmentMap.get(this.sortedKeys[startIndex - 1])! 
+            : 0;
+        this.segmentMap.set(to, valueBeforeRange);
     }
 
-
-
-    private updateIntermediatePoints(from: number, to: number, amount: number): void {
-        this.sortedKeys.forEach((key) => {
-            if (key > from && key < to) {
-                this.segmentMap.set(key, (this.segmentMap.get(key) || 0) + amount);
-            }
-        });
-    }
-
-
-    private handleAddStartPoint(from: number, amount: number): void {
-        if (this.segmentMap.has(from)) {
-            this.segmentMap.set(from, (this.segmentMap.get(from) || 0) + amount);
-        } else {
-            // 直接添加到 Map，标记需要重建，不使用 splice
-            this.segmentMap.set(from, 0);  // 先设置占位值
-            this.markDirty();
-            this.rebuildIfNeeded();  // 立即重建以便后续操作
-
-            const closestLeftPoint = findClosestLeftPoint(this.sortedKeys, from);
-
-            if (closestLeftPoint !== undefined) {
-                this.segmentMap.set(from, (this.segmentMap.get(closestLeftPoint) || 0) + amount);
-            } else {
-                this.segmentMap.set(from, amount);
-            }
-        }
-    }
-
-    private handleAddEndPoint(to: number, amount: number): void {
-        if (!this.segmentMap.has(to)) {
-            // 直接添加到 Map，标记需要重建，不使用 splice
-            this.segmentMap.set(to, 0);  // 先设置占位值
-            this.markDirty();
-            this.rebuildIfNeeded();  // 立即重建以便后续操作
-
-            // Find the intensity BEFORE adding this range
-            // The closest left point already has the new intensity added
-            // So we need to subtract the amount to get the original intensity
-            const closestLeftPoint = findClosestLeftPoint(this.sortedKeys, to);
-            if (closestLeftPoint !== undefined) {
-                const currentIntensity = this.segmentMap.get(closestLeftPoint) || 0;
-                this.segmentMap.set(to, currentIntensity - amount);
-            } else {
-                this.segmentMap.set(to, 0);
-            }
-        }
-    }
     /**
      * Add intensity to the specified interval (cumulative)
      * @param from - The start point of the interval
@@ -132,27 +71,41 @@ class IntensitySegments {
     add(from: number, to: number, amount: number): void {
         validateInput(from, to, amount);
 
-        // Handle start point
-        this.handleAddStartPoint(from, amount);
+        this.insertPoint(from);
+        this.insertPoint(to);
 
-        // Update intermediate points (must do BEFORE handling end point)
-        this.updateIntermediatePoints(from, to, amount);
+        const startIndex = findInsertPosition(this.sortedKeys, from);
+        const endIndex = findInsertPosition(this.sortedKeys, to);
 
-        // Handle end point (must do AFTER updating intermediate points)
-        this.handleAddEndPoint(to, amount);
+        // Accumulate intensity for all points within the interval
+        this.sortedKeys.slice(startIndex, endIndex).forEach(point => {
+            this.segmentMap.set(point, this.segmentMap.get(point)! + amount);
+        });
     }
 
 
     /**
      * Convert the intensity segments to a string
+     * Merges consecutive segments with same intensity
      * @returns The string representation of the intensity segments
      */
     toString(): string {
-        const res = mapToSortedArray(this.segmentMap, this.sortedKeys);
-        console.log(res);
-        return JSON.stringify(res);
+        const merged: [number, number][] = [];
+        let lastIntensity: number | null = null;
+
+        // Merge consecutive segments with same intensity
+        this.sortedKeys.forEach(point => {
+            const intensity = this.segmentMap.get(point)!;
+            if (intensity === lastIntensity) return;
+            merged.push([point, intensity]);
+            lastIntensity = intensity;
+        });
+
+        // Trim leading and trailing zero segments
+        const trimmed = trimZeroSegments(merged);
+
+        return JSON.stringify(trimmed);
     }
 }
 
-// 导出类
 export { IntensitySegments };

@@ -16,7 +16,7 @@ export function validateInput(from: number, to: number, amount: number): void {
     }
 
     // check the input range
-    if (from > to) {
+    if (from >= to) {
         throw new Error('Invalid input range');
     }
 
@@ -95,3 +95,40 @@ export function mapToSortedArray(
     return sortedKeys.map(key => [key, map.get(key)!]);
 }
 
+/**
+ * Trim leading and trailing zero-intensity segments
+ * - Removes all leading zero-intensity points
+ * - Removes trailing redundant zeros (keeps only the first trailing zero)
+ * - Returns empty array if all segments are zero
+ * @param segments - Array of [point, intensity] pairs
+ * @returns Trimmed array
+ */
+export function trimZeroSegments(segments: [number, number][]): [number, number][] {
+    if (segments.length === 0) {
+        return segments;
+    }
+
+    // Remove leading zeros
+    let startIndex = 0;
+    while (startIndex < segments.length && segments[startIndex][1] === 0) {
+        startIndex++;
+    }
+
+    // If all zeros, return empty array
+    if (startIndex >= segments.length) {
+        return [];
+    }
+
+    // Find last non-zero index
+    let endIndex = segments.length - 1;
+    while (endIndex > startIndex && segments[endIndex][1] === 0) {
+        endIndex--;
+    }
+
+    // Include one trailing zero (if exists) to mark the end
+    if (endIndex < segments.length - 1) {
+        endIndex++;
+    }
+
+    return segments.slice(startIndex, endIndex + 1);
+}
