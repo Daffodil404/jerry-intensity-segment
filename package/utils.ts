@@ -27,108 +27,46 @@ export function validateInput(from: number, to: number, amount: number): void {
 }
 
 /**
- * Binary search to find the insertion position in a sorted array
- * @param sortedArray - The sorted array to search
- * @param key - The key to insert
- * @returns The index where the key should be inserted
+ * 
+ * @param segments - The segments to compress and clean
+ * @returns The compressed and cleaned segments
  */
-export function findInsertPosition(sortedArray: number[], key: number): number {
-    let left = 0;
-    let right = sortedArray.length - 1;
-    
-    while (left <= right) {
-        const mid = Math.floor((left + right) / 2);
-        if (sortedArray[mid] < key) {
-            left = mid + 1;
-        } else {
-            right = mid - 1;
-        }
-    }
-    
-    return left;
-}
+export function compressAndTrim(segments: [number, number][]): [number, number][] {
+    if (segments.length === 0) return [];
 
-/**
- * Binary search to find the closest point to the left of a given key
- * @param sortedArray - The sorted array to search
- * @param key - The key to find the closest left point for
- * @returns The closest left point, or undefined if none exists
- */
-export function findClosestLeftPoint(sortedArray: number[], key: number): number | undefined {
-    let left = 0;
-    let right = sortedArray.length - 1;
-    let result = -1;
+    // Step 1: Remove consecutive duplicates (O(n))
+    const compressed: [number, number][] = [];
+    for (let i = 0; i < segments.length; i++) {
+        const [point, intensity] = segments[i];
+        const lastIntensity = compressed.length > 0 ? compressed[compressed.length - 1][1] : null;
 
-    while (left <= right) {
-        const mid = Math.floor((left + right) / 2);
-        if (sortedArray[mid] < key) {
-            result = mid;
-            left = mid + 1;
-        } else {
-            right = mid - 1;
+        if (intensity !== lastIntensity) {
+            compressed.push([point, intensity]);
         }
     }
 
-    return result >= 0 ? sortedArray[result] : undefined;
-}
+    if (compressed.length === 0) return [];
 
-/**
- * Insert a key into a sorted array while maintaining sort order
- * @param sortedArray - The sorted array to insert into
- * @param key - The key to insert
- */
-export function insertIntoSorted(sortedArray: number[], key: number): void {
-    const position = findInsertPosition(sortedArray, key);
-    sortedArray.splice(position, 0, key);
-}
-
-/**
- * Convert a Map to a sorted array of [key, value] pairs
- * @param map - The map to convert
- * @param sortedKeys - The sorted keys array
- * @returns Array of [key, value] pairs
- */
-export function mapToSortedArray(
-    map: Map<number, number>, 
-    sortedKeys: number[]
-): [number, number][] {
-    return sortedKeys.map(key => [key, map.get(key)!]);
-}
-
-/**
- * Trim leading and trailing zero-intensity segments
- * - Removes all leading zero-intensity points
- * - Removes trailing redundant zeros (keeps only the first trailing zero)
- * - Returns empty array if all segments are zero
- * @param segments - Array of [point, intensity] pairs
- * @returns Trimmed array
- */
-export function trimZeroSegments(segments: [number, number][]): [number, number][] {
-    if (segments.length === 0) {
-        return segments;
-    }
-
-    // Remove leading zeros
+    // Step 2: Remove leading zeros (O(n))
     let startIndex = 0;
-    while (startIndex < segments.length && segments[startIndex][1] === 0) {
+    while (startIndex < compressed.length && compressed[startIndex][1] === 0) {
         startIndex++;
     }
 
-    // If all zeros, return empty array
-    if (startIndex >= segments.length) {
-        return [];
+    if (startIndex >= compressed.length) {
+        return []; // All zeros
     }
 
-    // Find last non-zero index
-    let endIndex = segments.length - 1;
-    while (endIndex > startIndex && segments[endIndex][1] === 0) {
+    // Step 3: Find last non-zero and keep one trailing zero (O(n))
+    let endIndex = compressed.length - 1;
+    while (endIndex > startIndex && compressed[endIndex][1] === 0) {
         endIndex--;
     }
 
-    // Include one trailing zero (if exists) to mark the end
-    if (endIndex < segments.length - 1) {
+    // Include one trailing zero if it exists
+    if (endIndex < compressed.length - 1) {
         endIndex++;
     }
 
-    return segments.slice(startIndex, endIndex + 1);
+    return compressed.slice(startIndex, endIndex + 1);
 }
